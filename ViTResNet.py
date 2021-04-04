@@ -212,11 +212,11 @@ class ViTResNet(nn.Module):
 
         #Tokenization 
         wa = rearrange(self.token_wA, 'b h w -> b w h') #Transpose
-        A= torch.einsum('bij,bjk->bik', x, wa) 
+        A = torch.einsum('bij,bjk->bik', x, wa) 
         A = rearrange(A, 'b h w -> b w h') #Transpose
         A = A.softmax(dim=-1)
 
-        VV= torch.einsum('bij,bjk->bik', x, self.token_wV)       
+        VV = torch.einsum('bij,bjk->bik', x, self.token_wV)       
         T = torch.einsum('bij,bjk->bik', A, VV)  
         #print(T.size())
 
