@@ -6,10 +6,8 @@ import torch.nn.functional as F
 from einops import rearrange
 from torch import nn
 import torch.nn.init as init
-
-
-BATCH_SIZE_TRAIN = 100
-BATCH_SIZE_TEST = 100
+from common import *
+import os
 
 
 def _weights_init(m):
@@ -153,8 +151,14 @@ class Transformer(nn.Module):
      
 
 class ViTResNet(nn.Module):
-    def __init__(self, block, num_blocks, num_classes=10, dim = 128, num_tokens = 8, mlp_dim = 256, heads = 8, depth = 6, emb_dropout = 0.1, dropout= 0.1):
+
+
+    def __init__(self, block, num_blocks, batch_size_train,  num_classes=10, dim = 128, num_tokens = 8, mlp_dim = 256, heads = 8, depth = 6, emb_dropout = 0.1, dropout= 0.1):
         super(ViTResNet, self).__init__()
+
+        self.device = torch.device('cuda')
+        self.batch_size_train = batch_size_train
+
         self.in_planes = 16
         self.L = num_tokens
         self.cT = dim
@@ -168,9 +172,9 @@ class ViTResNet(nn.Module):
         
         
         # Tokenization
-        self.token_wA = nn.Parameter(torch.empty(BATCH_SIZE_TRAIN,self.L, 64),requires_grad = True) #Tokenization parameters
+        self.token_wA = nn.Parameter(torch.empty(self.batch_size_train, self.L, 64), requires_grad = True) #Tokenization parameters
         torch.nn.init.xavier_uniform_(self.token_wA)
-        self.token_wV = nn.Parameter(torch.empty(BATCH_SIZE_TRAIN,64,self.cT),requires_grad = True) #Tokenization parameters
+        self.token_wV = nn.Parameter(torch.empty(self.batch_size_train, 64, self.cT), requires_grad = True) #Tokenization parameters
         torch.nn.init.xavier_uniform_(self.token_wV)        
              
         
