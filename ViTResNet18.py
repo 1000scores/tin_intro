@@ -8,6 +8,7 @@ from torch import nn
 import torch.nn.init as init
 from common import *
 import os
+from TinyImageNet import TinyImageNet
 
 
 def _weights_init(m):
@@ -150,24 +151,23 @@ class Transformer(nn.Module):
         return x
      
 
-class ViTResNet(nn.Module):
-
+class ViTResNet18(nn.Module):
 
     def __init__(self, block, num_blocks, batch_size_train,  num_classes=10, dim = 128, num_tokens = 8, mlp_dim = 256, heads = 8, depth = 6, emb_dropout = 0.1, dropout= 0.1):
-        super(ViTResNet, self).__init__()
+        super(ViTResNet18, self).__init__()
 
         self.device = torch.device('cuda')
         self.batch_size_train = batch_size_train
 
-        self.in_planes = 16
+        self.in_planes = 64
         self.L = num_tokens
         self.cT = dim
         
-        self.conv1 = nn.Conv2d(3, 16, kernel_size=3, stride=1, padding=1, bias=False)
-        self.bn1 = nn.BatchNorm2d(16)
-        self.layer1 = self._make_layer(block, 16, num_blocks[0], stride=1)
-        self.layer2 = self._make_layer(block, 32, num_blocks[1], stride=2)
-        self.layer3 = self._make_layer(block, 64, num_blocks[2], stride=2) #8x8 feature maps (64 in total)
+        self.conv1 = nn.Conv2d(3, self.in_planes, kernel_size=7, stride=2, padding=3, bias=False)
+        self.bn1 = nn.BatchNorm2d(self.in_planes)
+        self.layer1 = self._make_layer(block, 64, num_blocks[0], stride=1)
+        self.layer2 = self._make_layer(block, 128, num_blocks[1], stride=2)
+        self.layer3 = self._make_layer(block, 256, num_blocks[2], stride=2) #8x8 feature maps (64 in total)
         self.apply(_weights_init)
         
         
@@ -237,37 +237,29 @@ class ViTResNet(nn.Module):
 
 
 if __name__ == '__main__':
-    BATCH_SIZE_TRAIN = 200
-    BATCH_SIZE_TEST = 200
-    device = torch.device('cuda')
-    EPOCHS = 150
-
-    DL_PATH = "./data"
+    PATH_TO_IMAGE_NET = "./data/tiny-imagenet-200"
+    BATCH_SIZE_TRAIN = 100
+    BATCH_SIZE_VAL = 100
+    device = torch.device("cuda")
 
     transform_train = torchvision.transforms.Compose(
-     [torchvision.transforms.RandomHorizontalFlip(),
-     torchvision.transforms.RandomRotation(10, resample=PIL.Image.BILINEAR),
-     torchvision.transforms.RandomAffine(8, translate=(.15,.15)),
-     torchvision.transforms.ToTensor(),
-     torchvision.transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))])
-
-    transform_test = torchvision.transforms.Compose([
+        [torchvision.transforms.RandomHorizontalFlip(),
+        torchvision.transforms.RandomRotation(10, resample=PIL.Image.BILINEAR),
+        torchvision.transforms.RandomAffine(8, translate=(.15,.15)),
         torchvision.transforms.ToTensor(),
         torchvision.transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))])
 
 
-    train_dataset = torchvision.datasets.CIFAR10(DL_PATH, train=True,
-                                            download=True, transform=transform_train)
+    transform_val = torchvision.transforms.Compose([
+        torchvision.transforms.ToTensor(),
+        torchvision.transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))])
 
-    test_dataset = torchvision.datasets.CIFAR10(DL_PATH, train=False,
-                                            download=True, transform=transform_test)
+    train_dataset = TinyImageNet(PATH_TO_IMAGE_NET, split='train', transform=transform_train)
+    val_dataset = TinyImageNet(PATH_TO_IMAGE_NET, split='val', transform=transform_val)
 
-    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=BATCH_SIZE_TRAIN,
-                                            shuffle=True)
+    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=BATCH_SIZE_TRAIN, shuffle=True)
+    val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=BATCH_SIZE_VAL, shuffle=False)
 
-    test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=BATCH_SIZE_TEST,
-                                            shuffle=False)
-
-
-    model = ViTResNet(BasicBlock, [3, 3, 3], BATCH_SIZE_TRAIN).to(device)
-    check_on_dataset(model, train_loader, test_loader, EPOCHS, "cifar10", "ViTResNet")
+    model = model = ViTResNet18(BasicBlock, [3, 3, 3], BATCH_SIZE_TRAIN, num_classes=200, num_tokens=16).to(device)
+    EPOCHS = 1
+    check_on_dataset(model, train_loader, val_loader, EPOCHS, "TinyImageNet", "ViTResNet18")
