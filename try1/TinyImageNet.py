@@ -10,6 +10,7 @@ import glob
 from torch.utils.data import Dataset
 from PIL import Image
 import torch
+from common import *
 
 EXTENSION = 'JPEG'
 NUM_IMAGES_PER_CLASS = 500

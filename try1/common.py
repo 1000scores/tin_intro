@@ -15,6 +15,7 @@ from torch import nn
 import torch.nn.init as init
 from common import *
 import os
+import cv2
 
 '''
 data/dataset_name
@@ -60,6 +61,12 @@ def deserialize_metrics(dataset_name: str, model_name: str):
     except:
         print("Can't deserialize these metrics!")
         return None
+
+def resize_img(image_path, size):
+    img = cv2.imread(image_path)
+    img = cv2.resize(img,(size,size), interpolation = cv2.INTER_CUBIC)
+    cv2.imwrite(image_path,img)
+
 
 def __graph_compare(dataset_name: str, model1_metrics, model2_metrics, model1_name: str, model2_name: str, metric_name: str, n_epochs: int):
     plt.xlabel("epochs(%)")
@@ -197,7 +204,7 @@ def check_on_dataset(model, train_loader, test_loader, epochs, dataset_name, mod
         #lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer=optimizer, milestones=[35,48],gamma = 0.1)
 
         train_loss_history, test_loss_history = [], []
-        last_epoch = 0
+        last_epoch = start_epoch
         model.train()
         for epoch in range(start_epoch, epochs + 1):
             last_epoch = epoch
@@ -205,8 +212,9 @@ def check_on_dataset(model, train_loader, test_loader, epochs, dataset_name, mod
             start_time = time.time()
             __train_epoch(model, optimizer, train_loader, train_loss_history)
             print('Execution time:', '{:5.2f}'.format(time.time() - start_time), 'seconds')
-            train_accuracy, test_accuracy = __evaluate(model, train_loader, train_loss_history, test_loader, test_loss_history)
-            serialize_metrics(dataset_name, model_name, epoch, train_accuracy.item(), test_accuracy.item())
+            if epoch % 10 == 0:
+                train_accuracy, test_accuracy = __evaluate(model, train_loader, train_loss_history, test_loader, test_loss_history)
+                serialize_metrics(dataset_name, model_name, epoch, train_accuracy.item(), test_accuracy.item())
 
             if epoch % 10 == 0:
                 torch.save({
