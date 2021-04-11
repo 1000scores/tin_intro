@@ -76,10 +76,6 @@ class VisualTransformer(nn.Module):
         tokens: int, 
         tokenizer_type: str,
         attn_dim: int, 
-        transformer_enc_layers: int,
-        transformer_heads: int,
-        transformer_fc_dim: int,
-        transformer_dropout: int,
         is_projected: bool = True,
     ) -> None:
         super(VisualTransformer, self).__init__()
@@ -105,20 +101,19 @@ class VisualTransformer(nn.Module):
         # self.transformer = SelfAttention(token_channels, token_channels)
         
         #Transformer(token_channels, attn_dim)
-        self.transformer = nn.Transformer(
+        '''self.transformer = nn.Transformer(
             token_channels, 
             nhead=transformer_heads, 
             num_encoder_layers=transformer_enc_layers, 
             num_decoder_layers=0, 
             dim_feedforward=transformer_fc_dim,
             dropout=transformer_dropout
-        )
+        )'''
 
-        # self.transformer = Transformer(
-        #     token_channels=token_channels,
-        #     attn_dim=attn_dim,
-        #     dropout=transformer_dropout
-        # )
+        self.transformer = Transformer(
+            token_channels=token_channels,
+            attn_dim=attn_dim
+        )
         
         self.projector = None
         if is_projected:
@@ -148,9 +143,10 @@ class VisualTransformer(nn.Module):
             t = self.tokenizer(x, t)
         
         # apply transformer
-        out = self.transformer(t, t)
+        out = self.transformer(t)
         
         if self.is_projected:
             out = self.projector(x, t)
         
         return out, t
+        

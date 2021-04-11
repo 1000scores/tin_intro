@@ -13,9 +13,9 @@ import torch.nn.functional as F
 from einops import rearrange
 from torch import nn
 import torch.nn.init as init
-from common import *
 import os
 import cv2
+from torch.optim.lr_scheduler import StepLR
 
 '''
 data/dataset_name
@@ -185,13 +185,18 @@ def __evaluate(model, train_data_loader, train_loss_history, test_data_loader, t
 
 
 def check_on_dataset(model, train_loader, test_loader, epochs, dataset_name, model_name):
+
+        if not os.path.isdir(f"./saved_nets"):
+            os.mkdir(f"./saved_nets")
+        
         if not os.path.isdir(f"./saved_nets/{dataset_name}"):
             os.mkdir(f"./saved_nets/{dataset_name}")
 
         path = f"saved_nets/{dataset_name}/{model_name}.pt"
         
+        #optimizer = torch.optim.SGD(model.parameters(), lr=0.1, nesterov=True, momentum=0.9, weight_decay=4e-5)
         optimizer = torch.optim.Adam(model.parameters(), lr=0.003)
-
+        #scheduler = StepLR(optimizer, step_size=30, gamma=0.1)
         start_epoch = 1
         if os.path.isfile(path):
             checkpoint = torch.load(path)
@@ -211,6 +216,7 @@ def check_on_dataset(model, train_loader, test_loader, epochs, dataset_name, mod
             print('Epoch:', epoch)
             start_time = time.time()
             __train_epoch(model, optimizer, train_loader, train_loss_history)
+            #scheduler.step()
             print('Execution time:', '{:5.2f}'.format(time.time() - start_time), 'seconds')
             if epoch % 10 == 0:
                 train_accuracy, test_accuracy = __evaluate(model, train_loader, train_loss_history, test_loader, test_loss_history)
