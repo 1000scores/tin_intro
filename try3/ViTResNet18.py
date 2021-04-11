@@ -10,6 +10,7 @@ import os
 from Tokenizers import FilterBasedTokenizer
 from common import *
 from TinyImageNet import TinyImageNet
+from VisualTransformer import VisualTranformer
 
 
 def _weights_init(m):
@@ -165,10 +166,11 @@ class ViTResNet18(nn.Module):
         torch.nn.init.xavier_uniform_(self.token_wA)
         self.token_wV = nn.Parameter(torch.empty(self.batch_size_train, 256, self.cT), requires_grad = True) #Tokenization parameters
         torch.nn.init.xavier_uniform_(self.token_wV)'''
-        self.tokenizer = FilterBasedTokenizer(batch_size_train)       
-             
+        #self.tokenizer = FilterBasedTokenizer(batch_size_train)    
+        self.visual_transformer1 = VisualTranformer(batch_size_train, num_tokens, dim, emb_dropout, depth, heads, mlp_dim, dropout)   
+        self.visual_transformer2 = VisualTranformer(batch_size_train, num_tokens, dim, emb_dropout, depth, heads, mlp_dim, dropout)     
         
-        self.pos_embedding = nn.Parameter(torch.empty(1, (num_tokens + 1), dim))
+        '''self.pos_embedding = nn.Parameter(torch.empty(1, (num_tokens + 1), dim))
         torch.nn.init.normal_(self.pos_embedding, std = .02) # initialized based on the paper
 
         #self.patch_conv= nn.Conv2d(64,dim, self.patch_size, stride = self.patch_size) 
@@ -178,7 +180,7 @@ class ViTResNet18(nn.Module):
 
         self.transformer = Transformer(dim, depth, heads, mlp_dim, dropout)
 
-        self.to_cls_token = nn.Identity()
+        self.to_cls_token = nn.Identity()'''
 
         self.nn1 = nn.Linear(dim, num_classes)  # if finetuning, just use a linear layer without further hidden layers (paper)
         torch.nn.init.xavier_uniform_(self.nn1.weight)
@@ -204,26 +206,36 @@ class ViTResNet18(nn.Module):
 
         x = self.layer1(x)
         x = self.layer2(x)  
-        x = self.layer3(x) 
+        x = self.layer3(x)
+        # x.shape = [100, 256, 14, 14]
+        x = rearrange(x, 'b c h w -> b (h w) c')
+        # x.shape = [100, 196, 256]
+        x = self.visual_transformer1(x)
+        # x.shape = [100, 17, 128]
+        x = self.visual_transformer2(x)
+        # T = self.tokenizer(x)
         
-        x = rearrange(x, 'b c h w -> b (h w) c') # 64 vectors each with 64 points. These are the sequences or word vecotrs like in NLP
+        '''x = rearrange(x, 'b c h w -> b (h w) c') # 64 vectors each with 64 points. These are the sequences or word vecotrs like in NLP
 
-        #Tokenization 
+        #Tokenization
+        
         wa = rearrange(self.token_wA, 'b h w -> b w h') #Transpose
         A = torch.einsum('bij,bjk->bik', x, wa) 
         A = rearrange(A, 'b h w -> b w h') #Transpose
         A = A.softmax(dim=-1)
 
         VV = torch.einsum('bij,bjk->bik', x, self.token_wV)       
-        T = torch.einsum('bij,bjk->bik', A, VV)  
+        T = torch.einsum('bij,bjk->bik', A, VV)  '''
         #print(T.size())
-
-        cls_tokens = self.cls_token.expand(img.shape[0], -1, -1)
+        # self.cls_token.shape = [1, 1, 128]
+        '''cls_tokens = self.cls_token.expand(img.shape[0], -1, -1)
+        # x.shape = [100, 256, 14, 14]
+        # T.shape = [100, 16, 128]
         x = torch.cat((cls_tokens, T), dim=1)
         x += self.pos_embedding
         x = self.dropout(x)
         x = self.transformer(x, mask) #main game
-        x = self.to_cls_token(x[:, 0])       
+        x = self.to_cls_token(x[:, 0])'''       
         x = self.nn1(x)
         
         
