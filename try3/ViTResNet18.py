@@ -167,8 +167,8 @@ class ViTResNet18(nn.Module):
         self.token_wV = nn.Parameter(torch.empty(self.batch_size_train, 256, self.cT), requires_grad = True) #Tokenization parameters
         torch.nn.init.xavier_uniform_(self.token_wV)'''
         #self.tokenizer = FilterBasedTokenizer(batch_size_train)    
-        self.visual_transformer1 = VisualTranformer(batch_size_train, num_tokens, dim, emb_dropout, depth, heads, mlp_dim, dropout)   
-        self.visual_transformer2 = VisualTranformer(batch_size_train, num_tokens, dim, emb_dropout, depth, heads, mlp_dim, dropout)     
+        self.visual_transformer1 = VisualTranformer(batch_size_train, num_tokens, dim, emb_dropout, depth, heads, mlp_dim, dropout, last = False)   
+        self.visual_transformer2 = VisualTranformer(batch_size_train, num_tokens, dim, emb_dropout, depth, heads, mlp_dim, dropout, last = True)     
         
         '''self.pos_embedding = nn.Parameter(torch.empty(1, (num_tokens + 1), dim))
         torch.nn.init.normal_(self.pos_embedding, std = .02) # initialized based on the paper
@@ -181,8 +181,8 @@ class ViTResNet18(nn.Module):
         self.transformer = Transformer(dim, depth, heads, mlp_dim, dropout)
 
         self.to_cls_token = nn.Identity()'''
-
-        self.nn1 = nn.Linear(dim, num_classes)  # if finetuning, just use a linear layer without further hidden layers (paper)
+        self.avgpool = nn.AdaptiveAvgPool2d((256, 1))
+        self.nn1 = nn.Linear(256, num_classes)  # if finetuning, just use a linear layer without further hidden layers (paper)
         torch.nn.init.xavier_uniform_(self.nn1.weight)
         torch.nn.init.normal_(self.nn1.bias, std = 1e-6)
 
@@ -235,14 +235,18 @@ class ViTResNet18(nn.Module):
         x += self.pos_embedding
         x = self.dropout(x)
         x = self.transformer(x, mask) #main game
-        x = self.to_cls_token(x[:, 0])'''       
+        x = self.to_cls_token(x[:, 0])'''    
+        #x = self.to_cls_token(x[:, 0])         
+        #x = self.nn1(x)
+        x = rearrange(x, 'b h w -> b w h') 
+        x = self.avgpool(x)
+        x = torch.flatten(x, 1)
         x = self.nn1(x)
-        
         
         return x
 
 
-if __name__ == '__main__':
+'''if __name__ == '__main__':
     PATH_TO_IMAGE_NET = "./data/tiny-imagenet-200"
     BATCH_SIZE_TRAIN = 100
     BATCH_SIZE_VAL = 100
@@ -268,4 +272,4 @@ if __name__ == '__main__':
 
     model = model = ViTResNet18(BasicBlock, [2, 2, 2], BATCH_SIZE_TRAIN, num_classes=200, num_tokens=16).to(device)
     EPOCHS = 1
-    check_on_dataset(model, train_loader, val_loader, EPOCHS, "TinyImageNet", "ViTResNet18")
+    check_on_dataset(model, train_loader, val_loader, EPOCHS, "TinyImageNet", "ViTResNet18")'''

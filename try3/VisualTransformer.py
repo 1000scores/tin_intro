@@ -106,11 +106,12 @@ class Transformer(nn.Module):
 
 class VisualTranformer(nn.Module):
     
-    def __init__(self, batch_size, num_tokens, dim, emb_dropout, depth, heads, mlp_dim, dropout):
+    def __init__(self, batch_size, num_tokens, dim, emb_dropout, depth, heads, mlp_dim, dropout, last: bool):
         super().__init__()
         self.batch_size = batch_size
         self.tokenizer = FilterBasedTokenizer(batch_size)
-        self.projector = Projector(batch_size, token_channels=128)
+        self.projector = Projector(batch_size, token_channels=256)
+        self.last = last
 
         self.pos_embedding = nn.Parameter(torch.empty(1, (num_tokens + 1), dim))
         torch.nn.init.normal_(self.pos_embedding, std = .02) # initialized based on the paper
@@ -127,10 +128,12 @@ class VisualTranformer(nn.Module):
     def forward(self, x):
 
         T = self.tokenizer(x)
-
-        x_out = self.projector(x, T)
-
-        return x_out
+        if not(self.last):
+            x_out = self.projector(x, T)
+            return x_out
+        else:
+            return T
+        
         # T.shape = [100, 16, 128]
         '''cls_tokens = self.cls_token.expand(self.batch_size, -1, -1)
         # x.shape = [100, 256, 14, 14]

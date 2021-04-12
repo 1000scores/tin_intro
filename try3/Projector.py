@@ -39,7 +39,7 @@ class Projector(nn.Module):
         B = rearrange(B, 'b h w -> b w h') #Transpose
 
         C = A.matmul(B)
-        C = C.softmax(dim=-1)
+        C = C.softmax(dim=2)
         C = C.matmul(T)
         x_out = x_in + C
 
