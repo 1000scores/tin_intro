@@ -1,6 +1,6 @@
-try1/data
-try1/saved_nets
-try2/data
-try2/saved_nets
-try3/data
-try3/saved_nets
+data/
+saved_nets/
+data
+saved_nets
+/data
+/saved_nets
