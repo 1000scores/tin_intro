@@ -7,7 +7,7 @@ from einops import rearrange
 from torch import nn
 import torch.nn.init as init
 import os
-from Tokenizers import FilterBasedTokenizer
+from Tokenizers import *
 from common import *
 from TinyImageNet import TinyImageNet
 from Projector import Projector
@@ -106,10 +106,19 @@ class Transformer(nn.Module):
 
 class VisualTranformer(nn.Module):
     
-    def __init__(self, batch_size, num_tokens, dim, emb_dropout, depth, heads, mlp_dim, dropout, last: bool):
+    def __init__(self, batch_size, num_tokens, dim, emb_dropout, depth, heads, mlp_dim, dropout, last: bool, tokenizer_type='filter'):
         super().__init__()
         self.batch_size = batch_size
-        self.tokenizer = FilterBasedTokenizer(batch_size)
+        self.rec = False
+        if tokenizer_type == 'filter':
+            self.tokenizer = FilterBasedTokenizer(batch_size)
+        elif tokenizer_type == 'cluster':
+            self.tokenizer = FilterBasedTokenizer(batch_size)
+        elif tokenizer_type == 'recurrent':
+            self.tokenizer = RecurrentBasedTokenizer(batch_size)
+            self.rec = True
+        else:
+            self.tokenizer = PoolingBasedTokenizer()
         self.projector = Projector(batch_size, token_channels=256)
         self.last = last
 
@@ -125,14 +134,19 @@ class VisualTranformer(nn.Module):
 
         self.to_cls_token = nn.Identity()
 
-    def forward(self, x):
+    def forward(self, x, T_in=None):
 
-        T = self.tokenizer(x)
+        T = None
+        if self.rec:
+            T = self.tokenizer(x, T_in)
+        else:
+            T = self.tokenizer(x)
+        
         if not(self.last):
             x_out = self.projector(x, T)
-            return x_out
+            return T, x_out
         else:
-            return T
+            return T, None
         
         # T.shape = [100, 16, 128]
         '''cls_tokens = self.cls_token.expand(self.batch_size, -1, -1)

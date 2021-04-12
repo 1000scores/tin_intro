@@ -7,10 +7,11 @@ from einops import rearrange
 from torch import nn
 import torch.nn.init as init
 import os
-from Tokenizers import FilterBasedTokenizer
+from Tokenizers import *
 from common import *
 from TinyImageNet import TinyImageNet
 from VisualTransformer import VisualTranformer
+
 
 
 def _weights_init(m):
@@ -140,7 +141,8 @@ class Transformer(nn.Module):
 
 class ViTResNet18(nn.Module):
 
-    def __init__(self, block, num_blocks, batch_size_train,  num_classes=10, dim = 128, num_tokens = 8, mlp_dim = 256, heads = 8, depth = 6, emb_dropout = 0.1, dropout= 0.1):
+    def __init__(self, block, num_blocks, batch_size_train,  num_classes=10, dim = 128, num_tokens = 8,
+                 mlp_dim = 256, heads = 8, depth = 6, emb_dropout = 0.1, dropout= 0.1, tokenizers_type = ['filter', 'filter']):
         super(ViTResNet18, self).__init__()
 
         self.device = torch.device('cuda')
@@ -166,9 +168,12 @@ class ViTResNet18(nn.Module):
         torch.nn.init.xavier_uniform_(self.token_wA)
         self.token_wV = nn.Parameter(torch.empty(self.batch_size_train, 256, self.cT), requires_grad = True) #Tokenization parameters
         torch.nn.init.xavier_uniform_(self.token_wV)'''
-        #self.tokenizer = FilterBasedTokenizer(batch_size_train)    
-        self.visual_transformer1 = VisualTranformer(batch_size_train, num_tokens, dim, emb_dropout, depth, heads, mlp_dim, dropout, last = False)   
-        self.visual_transformer2 = VisualTranformer(batch_size_train, num_tokens, dim, emb_dropout, depth, heads, mlp_dim, dropout, last = True)     
+        #self.tokenizer = FilterBasedTokenizer(batch_size_train)  
+        self.tokenizers_type = tokenizers_type  
+        self.visual_transformer1 = VisualTranformer(batch_size_train, num_tokens, dim,
+                                                     emb_dropout, depth, heads, mlp_dim, dropout, last = False, tokenizer_type=tokenizers_type[0])   
+        self.visual_transformer2 = VisualTranformer(batch_size_train, num_tokens, dim,
+                                                     emb_dropout, depth, heads, mlp_dim, dropout, last = True, tokenizer_type=tokenizers_type[1])      
         
         '''self.pos_embedding = nn.Parameter(torch.empty(1, (num_tokens + 1), dim))
         torch.nn.init.normal_(self.pos_embedding, std = .02) # initialized based on the paper
@@ -210,10 +215,12 @@ class ViTResNet18(nn.Module):
         # x.shape = [100, 256, 14, 14]
         x = rearrange(x, 'b c h w -> b (h w) c')
         # x.shape = [100, 196, 256]
-        x = self.visual_transformer1(x)
+        T, x = self.visual_transformer1(x)
         # x.shape = [100, 17, 128]
-        x = self.visual_transformer2(x)
-        # T = self.tokenizer(x)
+        if self.tokenizers_type[1] == 'recurrent':
+            T, x = self.visual_transformer2(x, T_in=T)
+        else:
+            T, x = self.visual_transformer2(x)
         
         '''x = rearrange(x, 'b c h w -> b (h w) c') # 64 vectors each with 64 points. These are the sequences or word vecotrs like in NLP
 
@@ -238,15 +245,15 @@ class ViTResNet18(nn.Module):
         x = self.to_cls_token(x[:, 0])'''    
         #x = self.to_cls_token(x[:, 0])         
         #x = self.nn1(x)
-        x = rearrange(x, 'b h w -> b w h') 
-        x = self.avgpool(x)
-        x = torch.flatten(x, 1)
-        x = self.nn1(x)
+        T = rearrange(T, 'b h w -> b w h') 
+        T = self.avgpool(T)
+        T = torch.flatten(T, 1)
+        T = self.nn1(T)
         
-        return x
+        return T
 
 
-'''if __name__ == '__main__':
+if __name__ == '__main__':
     PATH_TO_IMAGE_NET = "./data/tiny-imagenet-200"
     BATCH_SIZE_TRAIN = 100
     BATCH_SIZE_VAL = 100
@@ -270,6 +277,6 @@ class ViTResNet18(nn.Module):
     train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=BATCH_SIZE_TRAIN, shuffle=True)
     val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=BATCH_SIZE_VAL, shuffle=False)
 
-    model = model = ViTResNet18(BasicBlock, [2, 2, 2], BATCH_SIZE_TRAIN, num_classes=200, num_tokens=16).to(device)
+    model = ViTResNet18(BasicBlock, [2, 2, 2], BATCH_SIZE_TRAIN, num_classes=200, num_tokens=16, tokenizers_type=['filter', 'recurrent']).to(device)
     EPOCHS = 1
-    check_on_dataset(model, train_loader, val_loader, EPOCHS, "TinyImageNet", "ViTResNet18")'''
+    check_on_dataset(model, train_loader, val_loader, EPOCHS, "TinyImageNet", "kek")

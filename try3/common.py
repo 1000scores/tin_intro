@@ -216,9 +216,9 @@ def check_on_dataset(model, train_loader, test_loader, epochs, dataset_name, mod
             if epoch % 30 == 0:
                 scheduler.step()
             print('Execution time:', '{:5.2f}'.format(time.time() - start_time), 'seconds')
-            if epoch % 10 == 0:
+            if epoch % 1 == 0:
                 train_accuracy, test_accuracy = __evaluate(model, train_loader, train_loss_history, test_loader, test_loss_history)
-                serialize_metrics(dataset_name, model_name, epoch, train_accuracy.item(), test_accuracy.item())
+            '''    serialize_metrics(dataset_name, model_name, epoch, train_accuracy.item(), test_accuracy.item())
 
             if epoch % 10 == 0:
                 torch.save({
@@ -234,6 +234,6 @@ def check_on_dataset(model, train_loader, test_loader, epochs, dataset_name, mod
             'epoch': last_epoch,
             'model_state_dict': model.state_dict(),
             'optimizer_state_dict': optimizer.state_dict(),
-            }, path)
+            }, path)'''
 
         
